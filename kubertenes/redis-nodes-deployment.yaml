@@ -1,0 +1,58 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: redis-cluster
+  labels:
+    app: redis-cluster
+spec:
+  serviceName: redis-cluster
+  replicas: 6
+  template:
+    metadata:
+      labels:
+        app: redis-cluster
+      annotations:
+    spec:
+      containers:
+      - name: redis-cluster
+        image: tiroshanm/kubertenes-redis-cluster:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 6379
+          name: client
+        - containerPort: 16379
+          name: gossip
+        command: ["/usr/local/bin/redis-server"]
+        args: ["/redis-conf/redis.conf"]
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "redis-cli -h $(hostname) ping"
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "redis-cli -h $(hostname) ping"
+          initialDelaySeconds: 20
+          periodSeconds: 3
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: false
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        name: redis-cluster
+      annotations:
+        volume.alpha.kubernetes.io/storage-class: anything
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 100Mi
